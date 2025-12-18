@@ -11,7 +11,7 @@ repositories {
     mavenCentral()
 }
 
-group = "com.coryjreid.melodiqa"
+group = "com.aezshma.melodiqa"
 version = "1.0.0"
 
 java {
@@ -21,7 +21,7 @@ java {
 }
 
 application {
-    mainClass.set("com.coryjreid.melodiqa.Melodiqa")
+    mainClass.set("com.aezshma.melodiqa.Melodiqa")
 }
 
 runtime {
@@ -47,9 +47,12 @@ dependencies {
     implementation(platform("org.slf4j:slf4j-bom:2.0.17"))
 
     implementation("net.dv8tion:JDA:6.1.3")
+    implementation("com.typesafe:config:1.4.5")
+    implementation("com.google.guava:guava:33.5.0-jre")
 
     testImplementation(platform("org.junit:junit-bom:6.0.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.test {

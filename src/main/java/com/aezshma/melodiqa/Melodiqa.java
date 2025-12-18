@@ -1,11 +1,16 @@
-package com.coryjreid.melodiqa;
+package com.aezshma.melodiqa;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,27 +37,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import picocli.CommandLine;
-import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
 
 @Command(name = "melodiqa", mixinStandardHelpOptions = true, description = "Streams audio from an audio input device to a voice channel in a Discord server")
 public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
     private static final Logger sLogger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private static final String ENV_VAR_DISCORD_TOKEN = "MELODIQA_DISCORD_TOKEN";
+    private static final Path STOP_FILE_PATH = Paths.get(System.getenv("APPDATA"), "Aezshma", "Melodiqa", ".stop");
 
     // COMMAND LINE ARGUMENTS
-    @Parameters(index = "0", description = "Discord server id", arity = "0..1")
-    private long mGuildId;
-    @Parameters(index = "1", description = "Discord voice channel id", arity = "0..1")
-    private long mChannelId;
     @Option(names = {"-d", "--print-devices"}, description = "Print available audio devices")
     private boolean mPrintDevices;
-    @ArgGroup
-    private DeviceKey mDeviceKey;
-    @ArgGroup
-    private DiscordToken mDiscordToken;
+    @Option(names = {"-f", "--config"}, description = "Path to configuration file")
+    private String mConfigFilePath;
 
     // IMMUTABLE STATE
     private final Queue<byte[]> mAudioSendQueue = new ConcurrentLinkedQueue<>();
@@ -66,11 +63,14 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
 
     @Override
     public void run() {
+        final MelodiqaConfig config = MelodiqaConfig.fromFilePath(mConfigFilePath);
+
         final Map<String, Mixer> mixersMap = Arrays.stream(AudioSystem.getMixerInfo())
             .filter(info -> info.getDescription().contains("DirectSound Capture"))
             .collect(Collectors.toMap(Mixer.Info::getName, AudioSystem::getMixer));
         final List<String> mixerNames = mixersMap.keySet().stream().sorted().toList();
 
+        // Prints available audio devices and returns early
         if (mPrintDevices) {
             sLogger.info("Available devices ({}):", mixerNames.size());
             for (int i = 0; i < mixerNames.size(); i++) {
@@ -79,31 +79,14 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
             return;
         }
 
-        final int audioDeviceIndex = mDeviceKey.mIndex;
         final Mixer targetMixer;
-        switch (mDeviceKey.getKeyType()) {
-            case NAME:
-                if (!mixerNames.contains(mDeviceKey.mName)) {
-                    sLogger.error("Audio device name not found: {}", mDeviceKey.mName);
-                    mExitCode = 1;
-                    return;
-                } else {
-                    targetMixer = mixersMap.get(mixerNames.get(mixerNames.indexOf(mDeviceKey.mName)));
-                }
-                break;
-            case INDEX:
-                if (audioDeviceIndex < 0 || audioDeviceIndex >= mixerNames.size()) {
-                    sLogger.error("Audio device index out of range: {}", audioDeviceIndex);
-                    mExitCode = 1;
-                    return;
-                } else {
-                    targetMixer = mixersMap.get(mixerNames.get(audioDeviceIndex));
-                }
-                break;
-            default:
-                sLogger.error("No audio device key specified");
-                mExitCode = 1;
-                return;
+        // Selects target audio device or exits on failure
+        if (!mixerNames.contains(config.getAudioDeviceName())) {
+            sLogger.error("Audio device name not found: {}", config.getAudioDeviceName());
+            mExitCode = 1;
+            return;
+        } else {
+            targetMixer = mixersMap.get(mixerNames.get(mixerNames.indexOf(config.getAudioDeviceName())));
         }
 
         mAudioReceiveThread = new Thread(() -> {
@@ -116,14 +99,20 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
                 dataLine.start();
 
                 while (!mShutdown.get()) {
+                    if (STOP_FILE_PATH.toFile().exists()) {
+                        sLogger.info("Stopping audio receive thread due to stop file");
+                        mShutdown.set(true);
+                        break;
+                    }
+
                     final byte[] data = new byte[1920 * 2];
                     dataLine.read(data, 0, data.length);
                     mAudioSendQueue.add(data);
                 }
 
                 dataLine.stop();
-            } catch (final LineUnavailableException e) {
-                sLogger.error("Failed to open audio device", e);
+            } catch (final LineUnavailableException exception) {
+                sLogger.error("Failed to open audio device", exception);
                 mExitCode = 1;
                 mShutdown.set(true);
             }
@@ -138,7 +127,7 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
             GatewayIntent.MESSAGE_CONTENT);
 
         // Start the JDA session with the default mode (voice member cache)
-        mJda = JDABuilder.createDefault(mDiscordToken.getToken(), intents)
+        mJda = JDABuilder.createDefault(config.getDiscordBotToken(), intents)
             .setActivity(Activity.listening("to jams")) // Inform users that we are jammin' it out
             .setStatus(OnlineStatus.DO_NOT_DISTURB)           // Please don't disturb us while we're jammin'
             .enableCache(CacheFlag.VOICE_STATE)               // Enable the VOICE_STATE cache to find a user's connected voice channel
@@ -146,15 +135,15 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
 
         try {
             mJda.awaitReady();
-        } catch (final InterruptedException e) {
-            sLogger.error("JDA failed to be ready", e);
+        } catch (final InterruptedException exception) {
+            sLogger.error("JDA failed to be ready", exception);
             mExitCode = 1;
             return;
         }
 
-        final Guild guild = mJda.getGuildById(mGuildId);
+        final Guild guild = mJda.getGuildById(config.getGuildId());
         if (guild == null) {
-            sLogger.error("Guild not found: {}", mGuildId);
+            sLogger.error("Guild not found: {}", config.getGuildId());
             mExitCode = 1;
             return;
         }
@@ -176,13 +165,15 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
         sLogger.info("Starting audio receive thread");
         mAudioReceiveThread.start();
         sLogger.info("Connecting to voice channel");
-        mAudioManager.openAudioConnection(guild.getChannelById(AudioChannel.class, mChannelId));
+        mAudioManager.openAudioConnection(Objects.requireNonNull(guild.getChannelById(
+            AudioChannel.class,
+            config.getVoiceChannelId())));
 
         try {
             sLogger.info("Waiting for audio receive thread to finish");
             mAudioReceiveThread.join();
-        } catch (final InterruptedException e) {
-            sLogger.warn("Audio receive thread interrupted", e);
+        } catch (final InterruptedException exception) {
+            sLogger.warn("Audio receive thread interrupted", exception);
             mShutdown.set(true);
         }
     }
@@ -203,54 +194,22 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
         if (mJda != null) {
             mJda.shutdown();
         }
+        try {
+            final boolean stopFileDeleted = Files.deleteIfExists(STOP_FILE_PATH);
+            if (stopFileDeleted) {
+                sLogger.info("Stop file deleted");
+            } else {
+                sLogger.warn("Stop file not found");
+            }
+        } catch (final IOException exception) {
+            sLogger.error("Failed to delete stop file due to IO error", exception);
+        }
     }
 
     public static void main(final String[] args) {
         final Melodiqa melodiqa = new Melodiqa();
         Runtime.getRuntime().addShutdownHook(new Thread(melodiqa::shutdown));
 
-        final int exitCode = new CommandLine(melodiqa).execute(args);
-        System.exit(exitCode);
-    }
-
-    static class DeviceKey {
-        @Option(names = {"-n", "--device-name"}, paramLabel = "DEVICE_NAME", required = true)
-        String mName;
-
-        @Option(names = {"-i", "--device-index"}, paramLabel = "DEVICE_INDEX", required = true)
-        int mIndex;
-
-        KeyType getKeyType() {
-
-            if (mName != null) {
-                return KeyType.NAME;
-            } else if (mIndex >= 0) {
-                return KeyType.INDEX;
-            } else {
-                throw new RuntimeException("No device key specified");
-            }
-        }
-
-        enum KeyType {
-            NAME,
-            INDEX
-        }
-    }
-
-    static class DiscordToken {
-        @Option(names = {"-t", "--token"}, paramLabel = "TOKEN", required = true)
-        String mToken;
-
-        @Option(names = {"-e", "--use-environment-variable"}, required = true)
-        boolean mUseEnvironmentVariable;
-
-        String getToken() {
-            if (mUseEnvironmentVariable) {
-                return System.getenv(ENV_VAR_DISCORD_TOKEN);
-            } else {
-                return mToken;
-            }
-        }
+        System.exit(new CommandLine(melodiqa).execute(args));
     }
 }
-
