@@ -57,28 +57,28 @@ runtime {
 }
 
 dependencies {
-    implementation("info.picocli:picocli:4.7.7")
+    implementation(libs.picocli)
 
-    implementation("ch.qos.logback:logback-core:1.5.21")
-    implementation("ch.qos.logback:logback-classic:1.5.21")
-    implementation(platform("org.slf4j:slf4j-bom:2.0.17"))
+    implementation(libs.logback.core)
+    implementation(libs.logback.classic)
+    implementation(platform(libs.slf4j))
 
-    implementation("net.dv8tion:JDA:6.3.1")
-    implementation("com.typesafe:config:1.4.5")
-    implementation("com.google.guava:guava:33.5.0-jre")
+    implementation(libs.jda)
+    implementation(libs.typesafe.config)
+    implementation(libs.guava)
 
     // DAVE Protocol - https://daveprotocol.com
     // Interface to use for libraries
-    implementation("club.minnced:jdave-api:0.1.7")
+    implementation(libs.jdave.api)
     // Compiled natives for libdave for the specified platform
-    implementation("club.minnced:jdave-native-linux-x86-64:0.1.7")
-    implementation("club.minnced:jdave-native-linux-aarch64:0.1.7")
-    implementation("club.minnced:jdave-native-win-x86-64:0.1.7")
-    implementation("club.minnced:jdave-native-darwin:0.1.7")
+    implementation(libs.jdave.linux.amd64)
+    implementation(libs.jdave.linux.aarch64)
+    implementation(libs.jdave.win.amd64)
+    implementation(libs.jdave.darwin)
 
-    testImplementation(platform("org.junit:junit-bom:6.0.1"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.test {

@@ -1,0 +1,27 @@
+[versions]
+logback = "1.5.32"
+slf4j = "2.0.17"
+picocli = "4.7.7"
+jda = "6.3.1"
+typesafe-config = "1.4.5"
+guava = "33.5.0-jre"
+jdave = "0.1.7"
+junit = "6.0.1"
+
+
+[libraries]
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+logback-core = { module = "ch.qos.logback:logback-core", version.ref = "logback" }
+slf4j = { module = "org.slf4j:slf4j-bom", version.ref = "slf4j" }
+picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
+jda = { module = "net.dv8tion:JDA", version.ref = "jda" }
+typesafe-config = { module = "com.typesafe:config", version.ref = "typesafe-config" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+jdave-api = { module = "club.minnced:jdave-api", version.ref = "jdave" }
+jdave-linux-amd64 = { module = "club.minnced:jdave-native-linux-x86-64", version.ref = "jdave" }
+jdave-linux-aarch64 = { module = "club.minnced:jdave-native-linux-aarch64", version.ref = "jdave" }
+jdave-win-amd64 = { module = "club.minnced:jdave-native-win-x86-64", version.ref = "jdave" }
+jdave-darwin = { module = "club.minnced:jdave-native-darwin", version.ref = "jdave" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
