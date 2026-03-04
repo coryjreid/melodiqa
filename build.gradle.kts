@@ -12,11 +12,11 @@ repositories {
 }
 
 group = "com.aezshma.melodiqa"
-version = "1.0.0"
+version = "1.0.1"
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
 
@@ -63,9 +63,18 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.21")
     implementation(platform("org.slf4j:slf4j-bom:2.0.17"))
 
-    implementation("net.dv8tion:JDA:6.1.3")
+    implementation("net.dv8tion:JDA:6.3.1")
     implementation("com.typesafe:config:1.4.5")
     implementation("com.google.guava:guava:33.5.0-jre")
+
+    // DAVE Protocol - https://daveprotocol.com
+    // Interface to use for libraries
+    implementation("club.minnced:jdave-api:0.1.7")
+    // Compiled natives for libdave for the specified platform
+    implementation("club.minnced:jdave-native-linux-x86-64:0.1.7")
+    implementation("club.minnced:jdave-native-linux-aarch64:0.1.7")
+    implementation("club.minnced:jdave-native-win-x86-64:0.1.7")
+    implementation("club.minnced:jdave-native-darwin:0.1.7")
 
     testImplementation(platform("org.junit:junit-bom:6.0.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")

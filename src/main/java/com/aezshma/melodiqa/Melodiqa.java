@@ -25,6 +25,7 @@ import javax.sound.sampled.TargetDataLine;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.audio.AudioModuleConfig;
 import net.dv8tion.jda.api.audio.AudioSendHandler;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Guild;
@@ -36,6 +37,7 @@ import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import club.minnced.discord.jdave.interop.JDaveSessionFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -128,6 +130,7 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
 
         // Start the JDA session with the default mode (voice member cache)
         mJda = JDABuilder.createDefault(config.getDiscordBotToken(), intents)
+            .setAudioModuleConfig(new AudioModuleConfig().withDaveSessionFactory(new JDaveSessionFactory()))
             .setActivity(Activity.listening("to jams")) // Inform users that we are jammin' it out
             .setStatus(OnlineStatus.DO_NOT_DISTURB)           // Please don't disturb us while we're jammin'
             .enableCache(CacheFlag.VOICE_STATE)               // Enable the VOICE_STATE cache to find a user's connected voice channel
@@ -206,7 +209,7 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
         }
     }
 
-    public static void main(final String[] args) {
+    static void main(final String[] args) {
         final Melodiqa melodiqa = new Melodiqa();
         Runtime.getRuntime().addShutdownHook(new Thread(melodiqa::shutdown));
 
