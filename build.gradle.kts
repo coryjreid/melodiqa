@@ -84,3 +84,15 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+tasks.register("cleanStop") {
+    description = "Creates the stop file to gracefully shut down the bot"
+    group = "application"
+
+    doLast {
+        val stopFile = file("${System.getenv("APPDATA")}/Aezshma/Melodiqa/.stop")
+        stopFile.parentFile.mkdirs()
+        stopFile.createNewFile()
+        println("Created stop file: ${stopFile.absolutePath}")
+    }
+}
