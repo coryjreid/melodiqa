@@ -28,6 +28,23 @@ runtime {
     options.set(listOf("--strip-debug", "--compress", "0", "--no-header-files", "--no-man-pages"))
     imageDir.set(file(layout.buildDirectory.dir("image/${project.name}-${version}")))
     imageZip.set(file(layout.buildDirectory.dir("image/${project.name}-${version}.zip")))
+    addModules(
+        "java.se",
+        "jdk.accessibility",
+        "jdk.charsets",
+        "jdk.crypto.cryptoki",
+        "jdk.crypto.ec",
+        "jdk.crypto.mscapi",
+        "jdk.httpserver",
+        "jdk.jsobject",
+        "jdk.localedata",
+        "jdk.net",
+        "jdk.security.auth",
+        "jdk.security.jgss",
+        "jdk.unsupported",
+        "jdk.unsupported.desktop",
+        "jdk.xml.dom"
+    )
 
     jpackage {
         imageName = "Melodiqa"
