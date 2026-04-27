@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
+import javax.sound.sampled.Line;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
@@ -83,7 +84,8 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
         final MelodiqaConfig config = MelodiqaConfig.fromFilePath(mConfigFilePath);
 
         final Map<String, Mixer> mixersMap = Arrays.stream(AudioSystem.getMixerInfo())
-            .filter(info -> info.getDescription().contains("DirectSound Capture"))
+            .filter(info -> AudioSystem.getMixer(info)
+                .isLineSupported(new Line.Info(TargetDataLine.class)))
             .collect(Collectors.toMap(Mixer.Info::getName, AudioSystem::getMixer));
         final List<String> mixerNames = mixersMap.keySet().stream().sorted().toList();
 
