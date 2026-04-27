@@ -45,7 +45,22 @@ import picocli.CommandLine.Option;
 @Command(name = "melodiqa", mixinStandardHelpOptions = true, description = "Streams audio from an audio input device to a voice channel in a Discord server")
 public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
     private static final Logger sLogger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private static final Path STOP_FILE_PATH = Paths.get(System.getenv("APPDATA"), "Aezshma", "Melodiqa", ".stop");
+    private static final Path STOP_FILE_PATH = resolveStopFilePath();
+
+    private static Path resolveStopFilePath() {
+        return resolveStopFilePath(
+            System.getProperty("os.name"),
+            System.getenv("APPDATA"),
+            System.getProperty("user.home"));
+    }
+
+    static Path resolveStopFilePath(final String osName, final String appData, final String userHome) {
+        if (osName.toLowerCase().contains("win")) {
+            if (appData == null) throw new IllegalStateException("APPDATA environment variable is not set");
+            return Paths.get(appData, "Aezshma", "Melodiqa", ".stop");
+        }
+        return Paths.get(userHome, ".local", "share", "Aezshma", "Melodiqa", ".stop");
+    }
 
     // COMMAND LINE ARGUMENTS
     @Option(names = {"-d", "--print-devices"}, description = "Print available audio devices")
