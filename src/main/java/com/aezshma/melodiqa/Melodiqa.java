@@ -63,8 +63,6 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
 
     @Override
     public void run() {
-        final MelodiqaConfig config = MelodiqaConfig.fromFilePath(mConfigFilePath);
-
         final Map<String, Mixer> mixersMap = Arrays.stream(AudioSystem.getMixerInfo())
             .filter(info -> AudioSystem.getMixer(info).isLineSupported(new Line.Info(TargetDataLine.class)))
             .collect(Collectors.toMap(Mixer.Info::getName, AudioSystem::getMixer));
@@ -78,6 +76,8 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
             }
             return;
         }
+
+        final MelodiqaConfig config = MelodiqaConfig.fromFilePath(mConfigFilePath);
 
         final Mixer targetMixer;
         // Selects target audio device or exits on failure

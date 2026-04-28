@@ -12,7 +12,7 @@ repositories {
 }
 
 group = "com.aezshma.melodiqa"
-version = "1.0.1"
+version = "1.1.0"
 
 java {
     toolchain {
@@ -96,6 +96,32 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.register<Zip>("runtimeZipWinX64") {
+    group = "distribution"
+    description = "Zips the win-x64 runtime image"
+    dependsOn("runtime")
+    from(layout.buildDirectory.dir("image/${project.name}-${version}/${project.name}-win-x64"))
+    into("${project.name}-win-x64")
+    archiveFileName.set("${project.name}-${version}-win-x64.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("image"))
+}
+
+tasks.register<Zip>("runtimeZipLinuxX64") {
+    group = "distribution"
+    description = "Zips the linux-x64 runtime image"
+    dependsOn("runtime")
+    from(layout.buildDirectory.dir("image/${project.name}-${version}/${project.name}-linux-x64")) {
+        into("${project.name}-linux-x64")
+        exclude("bin/**")
+    }
+    from(layout.buildDirectory.dir("image/${project.name}-${version}/${project.name}-linux-x64/bin")) {
+        into("${project.name}-linux-x64/bin")
+        filePermissions { unix(0b111_101_101) }  // 0755 — executable bit stripped by Windows filesystem
+    }
+    archiveFileName.set("${project.name}-${version}-linux-x64.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("image"))
+}
+
 tasks.register("cleanStop") {
     description = "Triggers a graceful shutdown by creating the stop file"
     group = "application"
@@ -103,8 +129,7 @@ tasks.register("cleanStop") {
     doLast {
         val os = System.getProperty("os.name").lowercase()
         val stopFile = if (os.contains("win")) {
-            val appData = System.getenv("APPDATA")
-                ?: error("APPDATA environment variable is not set")
+            val appData = System.getenv("APPDATA") ?: error("APPDATA environment variable is not set")
             file("$appData/Aezshma/Melodiqa/.stop")
         } else {
             file("${System.getProperty("user.home")}/.local/share/Aezshma/Melodiqa/.stop")
