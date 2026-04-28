@@ -48,7 +48,7 @@ runtime {
     )
 
     targetPlatform("win-x64") {
-        // Uses the current host JDK (Windows build machine)
+        jdkHome = System.getProperty("java.home")  // Use the JDK running the build
     }
 
     targetPlatform("linux-x64") {
