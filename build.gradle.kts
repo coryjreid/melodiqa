@@ -28,13 +28,14 @@ runtime {
     options.set(listOf("--strip-debug", "--compress", "0", "--no-header-files", "--no-man-pages"))
     imageDir.set(file(layout.buildDirectory.dir("image/${project.name}-${version}")))
     imageZip.set(file(layout.buildDirectory.dir("image/${project.name}-${version}.zip")))
+
     addModules(
         "java.se",
         "jdk.accessibility",
         "jdk.charsets",
         "jdk.crypto.cryptoki",
         "jdk.crypto.ec",
-        "jdk.crypto.mscapi",
+        // jdk.crypto.mscapi removed: Windows certificate store not used by Melodiqa
         "jdk.httpserver",
         "jdk.jsobject",
         "jdk.localedata",
@@ -46,7 +47,17 @@ runtime {
         "jdk.xml.dom"
     )
 
+    targetPlatform("win-x64") {
+        // Uses the current host JDK (Windows build machine)
+    }
+
+    targetPlatform("linux-x64") {
+        jdkHome = findProperty("linuxJdkHome")?.toString()
+            ?: error("linuxJdkHome must be set in ~/.gradle/gradle.properties to build the Linux distribution")
+    }
+
     jpackage {
+        targetPlatformName = "win-x64"
         imageName = "Melodiqa"
         imageOptions = listOf("--win-console")
         skipInstaller = false
@@ -86,13 +97,30 @@ tasks.test {
 }
 
 tasks.register("cleanStop") {
-    description = "Creates the stop file to gracefully shut down the bot"
+    description = "Triggers a graceful shutdown by creating the stop file"
     group = "application"
 
     doLast {
-        val stopFile = file("${System.getenv("APPDATA")}/Aezshma/Melodiqa/.stop")
+        val os = System.getProperty("os.name").lowercase()
+        val stopFile = if (os.contains("win")) {
+            file("${System.getenv("APPDATA")}/Aezshma/Melodiqa/.stop")
+        } else {
+            file("${System.getProperty("user.home")}/.local/share/Aezshma/Melodiqa/.stop")
+        }
         stopFile.parentFile.mkdirs()
         stopFile.createNewFile()
         println("Created stop file: ${stopFile.absolutePath}")
     }
+}
+
+tasks.register("createDistributionWindows") {
+    description = "Creates the Windows distribution ZIP with bundled JRE"
+    group = "distribution"
+    dependsOn("runtimeZip")   // runtimeZip builds all target platforms in a single task
+}
+
+tasks.register("createDistributionLinux") {
+    description = "Creates the Linux distribution ZIP with bundled JRE"
+    group = "distribution"
+    dependsOn("runtimeZip")   // runtimeZip builds all target platforms in a single task
 }
