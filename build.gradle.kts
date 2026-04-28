@@ -103,7 +103,9 @@ tasks.register("cleanStop") {
     doLast {
         val os = System.getProperty("os.name").lowercase()
         val stopFile = if (os.contains("win")) {
-            file("${System.getenv("APPDATA")}/Aezshma/Melodiqa/.stop")
+            val appData = System.getenv("APPDATA")
+                ?: error("APPDATA environment variable is not set")
+            file("$appData/Aezshma/Melodiqa/.stop")
         } else {
             file("${System.getProperty("user.home")}/.local/share/Aezshma/Melodiqa/.stop")
         }
