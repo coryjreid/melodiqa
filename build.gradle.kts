@@ -114,15 +114,3 @@ tasks.register("cleanStop") {
         println("Created stop file: ${stopFile.absolutePath}")
     }
 }
-
-tasks.register("createDistributionWindows") {
-    description = "Creates the Windows distribution ZIP with bundled JRE"
-    group = "distribution"
-    dependsOn("runtimeZip")   // runtimeZip builds all target platforms in a single task
-}
-
-tasks.register("createDistributionLinux") {
-    description = "Creates the Linux distribution ZIP with bundled JRE"
-    group = "distribution"
-    dependsOn("runtimeZip")   // runtimeZip builds all target platforms in a single task
-}
