@@ -57,7 +57,7 @@ runtime {
     }
 
     jpackage {
-        targetPlatformName = "win-x64"
+        targetPlatformName = "win-x64"   // Required when targetPlatform entries are declared
         imageName = "Melodiqa"
         imageOptions = listOf("--win-console")
         skipInstaller = false
