@@ -32,4 +32,10 @@ public class MelodiqaTest {
         assertThrows(IllegalStateException.class,
             () -> Melodiqa.resolveStopFilePath("Windows 11", null, "/home/test"));
     }
+
+    @Test
+    void resolveStopFilePath_nullOsName_throws() {
+        assertThrows(IllegalStateException.class,
+            () -> Melodiqa.resolveStopFilePath(null, "C:\\Users\\test\\AppData\\Roaming", "/home/test"));
+    }
 }

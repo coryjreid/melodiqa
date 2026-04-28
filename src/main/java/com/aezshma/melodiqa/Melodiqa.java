@@ -56,6 +56,7 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
     }
 
     static Path resolveStopFilePath(final String osName, final String appData, final String userHome) {
+        if (osName == null) throw new IllegalStateException("os.name system property is not set");
         if (osName.toLowerCase().contains("win")) {
             if (appData == null) throw new IllegalStateException("APPDATA environment variable is not set");
             return Paths.get(appData, "Aezshma", "Melodiqa", ".stop");
