@@ -47,33 +47,14 @@ import picocli.CommandLine.Option;
 public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
     private static final Logger sLogger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final Path STOP_FILE_PATH = resolveStopFilePath();
-
-    private static Path resolveStopFilePath() {
-        return resolveStopFilePath(
-            System.getProperty("os.name"),
-            System.getenv("APPDATA"),
-            System.getProperty("user.home"));
-    }
-
-    static Path resolveStopFilePath(final String osName, final String appData, final String userHome) {
-        if (osName == null) throw new IllegalStateException("os.name system property is not set");
-        if (osName.toLowerCase().contains("win")) {
-            if (appData == null) throw new IllegalStateException("APPDATA environment variable is not set");
-            return Paths.get(appData, "Aezshma", "Melodiqa", ".stop");
-        }
-        return Paths.get(userHome, ".local", "share", "Aezshma", "Melodiqa", ".stop");
-    }
-
     // COMMAND LINE ARGUMENTS
     @Option(names = {"-d", "--print-devices"}, description = "Print available audio devices")
     private boolean mPrintDevices;
     @Option(names = {"-f", "--config"}, description = "Path to configuration file")
     private String mConfigFilePath;
-
     // IMMUTABLE STATE
     private final Queue<byte[]> mAudioSendQueue = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean mShutdown = new AtomicBoolean(false);
-
     // MUTABLE STATE
     private int mExitCode;
     private Thread mAudioReceiveThread;
@@ -85,8 +66,7 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
         final MelodiqaConfig config = MelodiqaConfig.fromFilePath(mConfigFilePath);
 
         final Map<String, Mixer> mixersMap = Arrays.stream(AudioSystem.getMixerInfo())
-            .filter(info -> AudioSystem.getMixer(info)
-                .isLineSupported(new Line.Info(TargetDataLine.class)))
+            .filter(info -> AudioSystem.getMixer(info).isLineSupported(new Line.Info(TargetDataLine.class)))
             .collect(Collectors.toMap(Mixer.Info::getName, AudioSystem::getMixer));
         final List<String> mixerNames = mixersMap.keySet().stream().sorted().toList();
 
@@ -227,10 +207,30 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
         }
     }
 
+    static Path resolveStopFilePath(final String osName, final String appData, final String userHome) {
+        if (osName == null) {
+            throw new IllegalStateException("os.name system property is not set");
+        }
+        if (osName.toLowerCase().contains("win")) {
+            if (appData == null) {
+                throw new IllegalStateException("APPDATA environment variable is not set");
+            }
+            return Paths.get(appData, "Aezshma", "Melodiqa", ".stop");
+        }
+        return Paths.get(userHome, ".local", "share", "Aezshma", "Melodiqa", ".stop");
+    }
+
     static void main(final String[] args) {
         final Melodiqa melodiqa = new Melodiqa();
         Runtime.getRuntime().addShutdownHook(new Thread(melodiqa::shutdown));
 
         System.exit(new CommandLine(melodiqa).execute(args));
+    }
+
+    private static Path resolveStopFilePath() {
+        return resolveStopFilePath(
+            System.getProperty("os.name"),
+            System.getenv("APPDATA"),
+            System.getProperty("user.home"));
     }
 }

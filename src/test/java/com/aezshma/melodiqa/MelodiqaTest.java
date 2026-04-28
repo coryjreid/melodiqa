@@ -1,11 +1,10 @@
 package com.aezshma.melodiqa;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 public class MelodiqaTest {
@@ -29,13 +28,15 @@ public class MelodiqaTest {
 
     @Test
     void resolveStopFilePath_windows_nullAppData_throws() {
-        assertThrows(IllegalStateException.class,
+        assertThrows(
+            IllegalStateException.class,
             () -> Melodiqa.resolveStopFilePath("Windows 11", null, "/home/test"));
     }
 
     @Test
     void resolveStopFilePath_nullOsName_throws() {
-        assertThrows(IllegalStateException.class,
+        assertThrows(
+            IllegalStateException.class,
             () -> Melodiqa.resolveStopFilePath(null, "C:\\Users\\test\\AppData\\Roaming", "/home/test"));
     }
 }
