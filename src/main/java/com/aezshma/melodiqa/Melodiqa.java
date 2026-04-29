@@ -2,7 +2,6 @@ package com.aezshma.melodiqa;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -10,7 +9,6 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,8 +27,6 @@ import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.audio.AudioModuleConfig;
 import net.dv8tion.jda.api.audio.AudioSendHandler;
 import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
 import net.dv8tion.jda.api.managers.AudioManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
@@ -142,33 +138,8 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
             return;
         }
 
-        final Guild guild = mJda.getGuildById(config.getGuildId());
-        if (guild == null) {
-            sLogger.error("Guild not found: {}", config.getGuildId());
-            mExitCode = 1;
-            return;
-        }
-
-        mAudioManager = guild.getAudioManager();
-        mAudioManager.setSendingHandler(new AudioSendHandler() {
-            @Override
-            public boolean canProvide() {
-                return !mAudioSendQueue.isEmpty();
-            }
-
-            @Override
-            public ByteBuffer provide20MsAudio() {
-                final byte[] data = mAudioSendQueue.poll();
-                return data == null ? null : ByteBuffer.wrap(data);
-            }
-        });
-
         sLogger.info("Starting audio receive thread");
         mAudioReceiveThread.start();
-        sLogger.info("Connecting to voice channel");
-        mAudioManager.openAudioConnection(Objects.requireNonNull(guild.getChannelById(
-            AudioChannel.class,
-            config.getVoiceChannelId())));
 
         try {
             sLogger.info("Waiting for audio receive thread to finish");
