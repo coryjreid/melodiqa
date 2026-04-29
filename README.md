@@ -23,7 +23,9 @@ Stream the music being played on your computer to your friends in Discord.
 
 ### Stopping
 
-1. Write an empty file to `C:\Users\USERNAME\AppData\Roaming\Aezshma\Melodiqa\.stop`
+1. Write an empty file to the stop path for your platform:
+   - **Windows:** `%APPDATA%\Aezshma\Melodiqa\.stop`
+   - **Linux:** `~/.local/share/Aezshma/Melodiqa/.stop`
 
 ### Tips
 
@@ -43,6 +45,13 @@ running inside a minimized `cmd.exe` instance allowing you to see the console ou
 
 ### Distribution
 
-1. Run Gradle task `runtimeZip`
-2. Navigate to `build/image/`
-3. Use the `melodiqa-VERSION/` or the `melodiqa-VERSION.zip` for distribution
+`runtimeZip` builds all target platforms in one pass (beryx runtime plugin v2.0.1 behaviour). Running it on Windows with `linuxJdkHome` configured in `~/.gradle/gradle.properties` produces both platform distributions simultaneously.
+
+1. Set `linuxJdkHome` in `~/.gradle/gradle.properties` pointing to a Linux x64 JDK 25 (e.g. Eclipse Temurin):
+   ```
+   linuxJdkHome=/path/to/temurin-25-linux-x64
+   ```
+2. Run Gradle task `runtimeZip`
+3. Collect the platform ZIPs from `build/image/`:
+   - `melodiqa-VERSION-win-x64.zip` — Windows distribution
+   - `melodiqa-VERSION-linux-x64.zip` — Linux distribution

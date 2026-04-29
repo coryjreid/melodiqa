@@ -5,6 +5,7 @@ build/
 !**/src/test/**/build/
 
 /.conf
+docs/
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
