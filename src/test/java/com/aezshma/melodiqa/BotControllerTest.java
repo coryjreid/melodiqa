@@ -101,6 +101,7 @@ class BotControllerTest {
         assertEquals(12345L, controller.getConnectedGuildId());
         assertEquals(mockChannel, controller.getConnectedChannel());
         verify(mockAudioManager).openAudioConnection(mockChannel);
+        verify(mockAudioManager).setSendingHandler(any());  // ADD THIS LINE
 
         controller.leave();
     }

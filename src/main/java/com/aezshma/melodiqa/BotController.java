@@ -42,6 +42,7 @@ public class BotController {
     }
 
     public synchronized void join(final AudioChannel channel) {
+        if (isConnected()) return;
         mConnectedChannel = channel;
         mConnectedGuildId = channel.getGuild().getIdLong();
         mAudioManager = channel.getGuild().getAudioManager();
@@ -84,33 +85,37 @@ public class BotController {
         sLogger.info("Joined voice channel: {}", channel.getName());
     }
 
-    public synchronized void leave() {
-        if (!isConnected()) return;
+    public void leave() {
+        final Thread captureThreadToJoin;
+        synchronized (this) {
+            if (!isConnected()) return;
 
-        cancelIdleTimer();
+            cancelIdleTimer();
 
-        mCapturing.set(false);
-        final TargetDataLine dataLine = mDataLine;
-        if (dataLine != null) {
-            dataLine.stop();
+            mCapturing.set(false);
+            final TargetDataLine dataLine = mDataLine;
+            if (dataLine != null) {
+                dataLine.stop();
+            }
+            captureThreadToJoin = (mCaptureThread != Thread.currentThread()) ? mCaptureThread : null;
+            mCaptureThread = null;
+            mAudioSendQueue.clear();
+
+            if (mAudioManager != null) {
+                mAudioManager.closeAudioConnection();
+                mAudioManager = null;
+            }
+
+            mConnectedChannel = null;
+            mConnectedGuildId = null;
         }
-        if (mCaptureThread != null && mCaptureThread != Thread.currentThread()) {
+        if (captureThreadToJoin != null) {
             try {
-                mCaptureThread.join(2000);
+                captureThreadToJoin.join(2000);
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
-        mCaptureThread = null;
-        mAudioSendQueue.clear();
-
-        if (mAudioManager != null) {
-            mAudioManager.closeAudioConnection();
-            mAudioManager = null;
-        }
-
-        mConnectedChannel = null;
-        mConnectedGuildId = null;
         sLogger.info("Left voice channel");
     }
 
@@ -128,15 +133,15 @@ public class BotController {
         }
     }
 
-    public boolean isConnected() {
+    public synchronized boolean isConnected() {
         return mConnectedGuildId != null;
     }
 
-    public Long getConnectedGuildId() {
+    public synchronized Long getConnectedGuildId() {
         return mConnectedGuildId;
     }
 
-    public AudioChannel getConnectedChannel() {
+    public synchronized AudioChannel getConnectedChannel() {
         return mConnectedChannel;
     }
 }
