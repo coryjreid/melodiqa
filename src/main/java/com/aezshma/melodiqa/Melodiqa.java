@@ -2,9 +2,14 @@ package com.aezshma.melodiqa;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -107,15 +112,38 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
         sLogger.info("Bot ready. Use /join in Discord to invite the bot to your voice channel.");
 
         boolean stopFileDetected = false;
-        while (!STOP_FILE_PATH.toFile().exists()) {
-            try {
-                Thread.sleep(1000);
-            } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
+        final Path stopDir = STOP_FILE_PATH.getParent();
+        try {
+            Files.createDirectories(stopDir);
+            try (final WatchService watcher = FileSystems.getDefault().newWatchService()) {
+                stopDir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE);
+                if (STOP_FILE_PATH.toFile().exists()) {
+                    stopFileDetected = true;
+                } else {
+                    outer:
+                    while (true) {
+                        final WatchKey key;
+                        try {
+                            key = watcher.take();
+                        } catch (final InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                        for (final WatchEvent<?> event : key.pollEvents()) {
+                            if (event.kind() == StandardWatchEventKinds.OVERFLOW) continue;
+                            if (STOP_FILE_PATH.getFileName().equals(event.context())) {
+                                stopFileDetected = true;
+                                break outer;
+                            }
+                        }
+                        key.reset();
+                    }
+                }
             }
+        } catch (final IOException e) {
+            sLogger.error("Failed to initialize stop file watcher", e);
+            stopFileDetected = STOP_FILE_PATH.toFile().exists();
         }
-        stopFileDetected = STOP_FILE_PATH.toFile().exists();
 
         if (stopFileDetected) {
             sLogger.info("Stop file detected, shutting down");
@@ -125,21 +153,29 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
         performShutdown();
     }
 
+    @Override
+    public int getExitCode() {
+        return mExitCode;
+    }
+
     private void performShutdown() {
-        if (!mShutdownInitiated.compareAndSet(false, true)) return;
-        if (mController != null) mController.leave();
-        if (mJda != null) mJda.shutdown();
-        if (mScheduler != null) mScheduler.shutdown();
+        if (!mShutdownInitiated.compareAndSet(false, true)) {
+            return;
+        }
+        if (mController != null) {
+            mController.leave();
+        }
+        if (mJda != null) {
+            mJda.shutdown();
+        }
+        if (mScheduler != null) {
+            mScheduler.shutdown();
+        }
         try {
             Files.deleteIfExists(STOP_FILE_PATH);
         } catch (final IOException e) {
             sLogger.error("Failed to delete stop file", e);
         }
-    }
-
-    @Override
-    public int getExitCode() {
-        return mExitCode;
     }
 
     private void shutdown() {
