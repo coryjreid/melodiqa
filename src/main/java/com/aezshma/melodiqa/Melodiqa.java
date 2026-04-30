@@ -11,10 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Line;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
@@ -23,7 +23,6 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.audio.AudioModuleConfig;
-import net.dv8tion.jda.api.audio.AudioSendHandler;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.requests.GatewayIntent;
@@ -51,6 +50,7 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
     private JDA mJda;
     private BotController mController;
     private ScheduledExecutorService mScheduler;
+    private final AtomicBoolean mShutdownInitiated = new AtomicBoolean(false);
 
     @Override
     public void run() {
@@ -106,6 +106,7 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
 
         sLogger.info("Bot ready. Use /join in Discord to invite the bot to your voice channel.");
 
+        boolean stopFileDetected = false;
         while (!STOP_FILE_PATH.toFile().exists()) {
             try {
                 Thread.sleep(1000);
@@ -114,12 +115,21 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
                 break;
             }
         }
+        stopFileDetected = STOP_FILE_PATH.toFile().exists();
 
-        sLogger.info("Stop file detected, shutting down");
-        mController.leave();
-        mJda.shutdown();
-        mScheduler.shutdown();
+        if (stopFileDetected) {
+            sLogger.info("Stop file detected, shutting down");
+        } else {
+            sLogger.info("Main thread interrupted, shutting down");
+        }
+        performShutdown();
+    }
 
+    private void performShutdown() {
+        if (!mShutdownInitiated.compareAndSet(false, true)) return;
+        if (mController != null) mController.leave();
+        if (mJda != null) mJda.shutdown();
+        if (mScheduler != null) mScheduler.shutdown();
         try {
             Files.deleteIfExists(STOP_FILE_PATH);
         } catch (final IOException e) {
@@ -134,20 +144,7 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
 
     private void shutdown() {
         sLogger.info("Shutdown hook triggered");
-        if (mController != null) {
-            mController.leave();
-        }
-        if (mJda != null) {
-            mJda.shutdown();
-        }
-        if (mScheduler != null) {
-            mScheduler.shutdown();
-        }
-        try {
-            Files.deleteIfExists(STOP_FILE_PATH);
-        } catch (final IOException e) {
-            sLogger.error("Failed to delete stop file during shutdown", e);
-        }
+        performShutdown();
     }
 
     static Path resolveStopFilePath(final String osName, final String appData, final String userHome) {
