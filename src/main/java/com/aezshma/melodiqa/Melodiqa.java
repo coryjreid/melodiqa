@@ -9,15 +9,13 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Line;
-import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
 
@@ -27,7 +25,7 @@ import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.audio.AudioModuleConfig;
 import net.dv8tion.jda.api.audio.AudioSendHandler;
 import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.managers.AudioManager;
+import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 
@@ -43,19 +41,16 @@ import picocli.CommandLine.Option;
 public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
     private static final Logger sLogger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final Path STOP_FILE_PATH = resolveStopFilePath();
-    // COMMAND LINE ARGUMENTS
+
     @Option(names = {"-d", "--print-devices"}, description = "Print available audio devices")
     private boolean mPrintDevices;
     @Option(names = {"-f", "--config"}, description = "Path to configuration file")
     private String mConfigFilePath;
-    // IMMUTABLE STATE
-    private final Queue<byte[]> mAudioSendQueue = new ConcurrentLinkedQueue<>();
-    private final AtomicBoolean mShutdown = new AtomicBoolean(false);
-    // MUTABLE STATE
+
     private int mExitCode;
-    private Thread mAudioReceiveThread;
     private JDA mJda;
-    private AudioManager mAudioManager;
+    private BotController mController;
+    private ScheduledExecutorService mScheduler;
 
     @Override
     public void run() {
@@ -64,7 +59,6 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
             .collect(Collectors.toMap(Mixer.Info::getName, AudioSystem::getMixer));
         final List<String> mixerNames = mixersMap.keySet().stream().sorted().toList();
 
-        // Prints available audio devices and returns early
         if (mPrintDevices) {
             sLogger.info("Available devices ({}):", mixerNames.size());
             for (int i = 0; i < mixerNames.size(); i++) {
@@ -75,78 +69,61 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
 
         final MelodiqaConfig config = MelodiqaConfig.fromFilePath(mConfigFilePath);
 
-        final Mixer targetMixer;
-        // Selects target audio device or exits on failure
         if (!mixerNames.contains(config.getAudioDeviceName())) {
             sLogger.error("Audio device name not found: {}", config.getAudioDeviceName());
             mExitCode = 1;
             return;
-        } else {
-            targetMixer = mixersMap.get(mixerNames.get(mixerNames.indexOf(config.getAudioDeviceName())));
         }
 
-        mAudioReceiveThread = new Thread(() -> {
-            try (
-                final TargetDataLine dataLine = (TargetDataLine) targetMixer.getLine(new DataLine.Info(
-                    TargetDataLine.class,
-                    AudioSendHandler.INPUT_FORMAT))) {
+        final Mixer targetMixer = mixersMap.get(config.getAudioDeviceName());
+        mScheduler = Executors.newSingleThreadScheduledExecutor();
+        mController = new BotController(targetMixer, mScheduler);
 
-                dataLine.open();
-                dataLine.start();
-
-                while (!mShutdown.get()) {
-                    if (STOP_FILE_PATH.toFile().exists()) {
-                        sLogger.info("Stopping audio receive thread due to stop file");
-                        mShutdown.set(true);
-                        break;
-                    }
-
-                    final byte[] data = new byte[1920 * 2];
-                    dataLine.read(data, 0, data.length);
-                    mAudioSendQueue.add(data);
-                }
-
-                dataLine.stop();
-            } catch (final LineUnavailableException exception) {
-                sLogger.error("Failed to open audio device", exception);
-                mExitCode = 1;
-                mShutdown.set(true);
-            }
-        });
-
-        final EnumSet<GatewayIntent> intents = EnumSet.of(
-            // Need messages in guilds to accept commands from users
-            GatewayIntent.GUILD_MESSAGES,
-            // Need voice states to connect to the voice channel
-            GatewayIntent.GUILD_VOICE_STATES,
-            // Enable access to message.getContentRaw()
-            GatewayIntent.MESSAGE_CONTENT);
-
-        // Start the JDA session with the default mode (voice member cache)
-        mJda = JDABuilder.createDefault(config.getDiscordBotToken(), intents)
+        mJda = JDABuilder.createDefault(
+                config.getDiscordBotToken(),
+                EnumSet.of(GatewayIntent.GUILD_VOICE_STATES))
             .setAudioModuleConfig(new AudioModuleConfig().withDaveSessionFactory(new JDaveSessionFactory()))
-            .setActivity(Activity.listening("to jams")) // Inform users that we are jammin' it out
-            .setStatus(OnlineStatus.DO_NOT_DISTURB)           // Please don't disturb us while we're jammin'
-            .enableCache(CacheFlag.VOICE_STATE)               // Enable the VOICE_STATE cache to find a user's connected voice channel
-            .build();                                         // Login with these options
+            .setActivity(Activity.listening("to jams"))
+            .setStatus(OnlineStatus.DO_NOT_DISTURB)
+            .enableCache(CacheFlag.VOICE_STATE)
+            .addEventListeners(
+                new SlashCommandListener(mController),
+                new VoiceStateListener(mController))
+            .build();
 
         try {
             mJda.awaitReady();
-        } catch (final InterruptedException exception) {
-            sLogger.error("JDA failed to be ready", exception);
+        } catch (final InterruptedException e) {
+            sLogger.error("JDA failed to be ready", e);
             mExitCode = 1;
             return;
         }
 
-        sLogger.info("Starting audio receive thread");
-        mAudioReceiveThread.start();
+        mJda.updateCommands().addCommands(
+            Commands.slash("join", "Joins your current voice channel"),
+            Commands.slash("leave", "Leaves the current voice channel")
+        ).queue();
+
+        sLogger.info("Bot ready. Use /join in Discord to invite the bot to your voice channel.");
+
+        while (!STOP_FILE_PATH.toFile().exists()) {
+            try {
+                Thread.sleep(1000);
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        sLogger.info("Stop file detected, shutting down");
+        mController.leave();
+        mJda.shutdown();
+        mScheduler.shutdown();
 
         try {
-            sLogger.info("Waiting for audio receive thread to finish");
-            mAudioReceiveThread.join();
-        } catch (final InterruptedException exception) {
-            sLogger.warn("Audio receive thread interrupted", exception);
-            mShutdown.set(true);
+            Files.deleteIfExists(STOP_FILE_PATH);
+        } catch (final IOException e) {
+            sLogger.error("Failed to delete stop file", e);
         }
     }
 
@@ -157,24 +134,19 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
 
     private void shutdown() {
         sLogger.info("Shutdown hook triggered");
-        if (mAudioManager != null) {
-            mAudioManager.closeAudioConnection();
-        }
-        if (mAudioReceiveThread != null) {
-            mAudioReceiveThread.interrupt();
+        if (mController != null) {
+            mController.leave();
         }
         if (mJda != null) {
             mJda.shutdown();
         }
+        if (mScheduler != null) {
+            mScheduler.shutdown();
+        }
         try {
-            final boolean stopFileDeleted = Files.deleteIfExists(STOP_FILE_PATH);
-            if (stopFileDeleted) {
-                sLogger.info("Stop file deleted");
-            } else {
-                sLogger.warn("Stop file not found");
-            }
-        } catch (final IOException exception) {
-            sLogger.error("Failed to delete stop file due to IO error", exception);
+            Files.deleteIfExists(STOP_FILE_PATH);
+        } catch (final IOException e) {
+            sLogger.error("Failed to delete stop file during shutdown", e);
         }
     }
 
@@ -194,7 +166,6 @@ public class Melodiqa implements Runnable, CommandLine.IExitCodeGenerator {
     static void main(final String[] args) {
         final Melodiqa melodiqa = new Melodiqa();
         Runtime.getRuntime().addShutdownHook(new Thread(melodiqa::shutdown));
-
         System.exit(new CommandLine(melodiqa).execute(args));
     }
 
