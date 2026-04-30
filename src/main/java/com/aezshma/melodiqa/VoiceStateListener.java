@@ -22,7 +22,7 @@ public class VoiceStateListener extends ListenerAdapter {
     public void onGuildVoiceUpdate(final GuildVoiceUpdateEvent event) {
         if (event.getMember().equals(event.getGuild().getSelfMember())) {
             if (event.getChannelLeft() != null) {
-                sLogger.info("Bot was removed from voice channel by admin, resetting state");
+                sLogger.info("Bot left voice channel (kicked or moved by admin), resetting state");
                 mController.leave();
             }
             return;
@@ -43,6 +43,9 @@ public class VoiceStateListener extends ListenerAdapter {
 
         final AudioChannel left = event.getChannelLeft();
         if (botChannel.equals(left)) {
+            // getMembers() reflects state at read time, not strictly at event time — a concurrent
+            // departure between the event and this read can cause the idle timer to be missed for
+            // one cycle. Acceptable given the 5-minute timer provides sufficient tolerance.
             final long nonBotCount = left.getMembers().stream()
                 .filter(m -> !m.getUser().isBot())
                 .count();
