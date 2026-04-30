@@ -1,7 +1,5 @@
 package com.aezshma.melodiqa;
 
-import static org.mockito.Mockito.*;
-
 import java.util.List;
 
 import net.dv8tion.jda.api.entities.Guild;
@@ -9,7 +7,6 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.SelfMember;
 import net.dv8tion.jda.api.entities.SelfUser;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
 import net.dv8tion.jda.api.entities.channel.unions.AudioChannelUnion;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceUpdateEvent;
 
@@ -17,6 +14,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -25,67 +26,76 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class VoiceStateListenerTest {
 
-    @Mock private BotController mockController;
-    @Mock private GuildVoiceUpdateEvent mockEvent;
-    @Mock private Guild mockGuild;
-    @Mock private Member mockUser;
-    @Mock private SelfMember mockBotMember;
-    @Mock private User mockUserAccount;
-    @Mock private SelfUser mockBotAccount;
-    @Mock private AudioChannelUnion mockBotChannel;
-    @Mock private AudioChannelUnion mockOtherChannel;
+    @Mock
+    private BotController mMockController;
+    @Mock
+    private GuildVoiceUpdateEvent mMockEvent;
+    @Mock
+    private Guild mMockGuild;
+    @Mock
+    private Member mMockUser;
+    @Mock
+    private SelfMember mMockBotMember;
+    @Mock
+    private User mMockUserAccount;
+    @Mock
+    private SelfUser mMockBotAccount;
+    @Mock
+    private AudioChannelUnion mMockBotChannel;
+    @Mock
+    private AudioChannelUnion mMockOtherChannel;
 
-    private VoiceStateListener listener;
+    private VoiceStateListener mListener;
 
     @BeforeEach
     void setUp() {
-        listener = new VoiceStateListener(mockController);
-        when(mockEvent.getGuild()).thenReturn(mockGuild);
-        when(mockGuild.getSelfMember()).thenReturn(mockBotMember);
-        when(mockGuild.getIdLong()).thenReturn(750000000000000000L);
-        when(mockController.getConnectedGuildId()).thenReturn(750000000000000000L);
-        when(mockController.getConnectedChannel()).thenReturn(mockBotChannel);
-        when(mockUser.getUser()).thenReturn(mockUserAccount);
-        when(mockUserAccount.isBot()).thenReturn(false);
-        when(mockBotMember.getUser()).thenReturn(mockBotAccount);
-        when(mockBotAccount.isBot()).thenReturn(true);
+        mListener = new VoiceStateListener(mMockController);
+        when(mMockEvent.getGuild()).thenReturn(mMockGuild);
+        when(mMockGuild.getSelfMember()).thenReturn(mMockBotMember);
+        when(mMockGuild.getIdLong()).thenReturn(750000000000000000L);
+        when(mMockController.getConnectedGuildId()).thenReturn(750000000000000000L);
+        when(mMockController.getConnectedChannel()).thenReturn(mMockBotChannel);
+        when(mMockUser.getUser()).thenReturn(mMockUserAccount);
+        when(mMockUserAccount.isBot()).thenReturn(false);
+        when(mMockBotMember.getUser()).thenReturn(mMockBotAccount);
+        when(mMockBotAccount.isBot()).thenReturn(true);
     }
 
     @Test
     void botKickedCallsLeave() {
         // Same object reference so .equals() returns true
-        when(mockEvent.getMember()).thenReturn(mockBotMember);
-        when(mockEvent.getChannelLeft()).thenReturn(mockBotChannel);
-        when(mockEvent.getChannelJoined()).thenReturn(null);
+        when(mMockEvent.getMember()).thenReturn(mMockBotMember);
+        when(mMockEvent.getChannelLeft()).thenReturn(mMockBotChannel);
+        when(mMockEvent.getChannelJoined()).thenReturn(null);
 
-        listener.onGuildVoiceUpdate(mockEvent);
+        mListener.onGuildVoiceUpdate(mMockEvent);
 
-        verify(mockController).leave();
+        verify(mMockController).leave();
     }
 
     @Test
     void botMovedByAdminCallsLeave() {
-        when(mockEvent.getMember()).thenReturn(mockBotMember);
-        when(mockEvent.getChannelLeft()).thenReturn(mockBotChannel);
-        when(mockEvent.getChannelJoined()).thenReturn(mockOtherChannel);
+        when(mMockEvent.getMember()).thenReturn(mMockBotMember);
+        when(mMockEvent.getChannelLeft()).thenReturn(mMockBotChannel);
+        when(mMockEvent.getChannelJoined()).thenReturn(mMockOtherChannel);
 
-        listener.onGuildVoiceUpdate(mockEvent);
+        mListener.onGuildVoiceUpdate(mMockEvent);
 
-        verify(mockController).leave();
+        verify(mMockController).leave();
     }
 
     @Test
     void userLeavingBotChannelWithNoOtherUsersStartsIdleTimer() {
-        when(mockEvent.getMember()).thenReturn(mockUser);
-        when(mockEvent.getChannelLeft()).thenReturn(mockBotChannel);
-        when(mockEvent.getChannelJoined()).thenReturn(null);
+        when(mMockEvent.getMember()).thenReturn(mMockUser);
+        when(mMockEvent.getChannelLeft()).thenReturn(mMockBotChannel);
+        when(mMockEvent.getChannelJoined()).thenReturn(null);
         // Only the bot remains after the user left
-        when(mockBotChannel.getMembers()).thenReturn(List.of(mockBotMember));
+        when(mMockBotChannel.getMembers()).thenReturn(List.of(mMockBotMember));
 
-        listener.onGuildVoiceUpdate(mockEvent);
+        mListener.onGuildVoiceUpdate(mMockEvent);
 
-        verify(mockController).startIdleTimer();
-        verify(mockController, never()).cancelIdleTimer();
+        verify(mMockController).startIdleTimer();
+        verify(mMockController, never()).cancelIdleTimer();
     }
 
     @Test
@@ -95,67 +105,67 @@ class VoiceStateListenerTest {
         when(anotherUser.getUser()).thenReturn(anotherUserAccount);
         when(anotherUserAccount.isBot()).thenReturn(false);
 
-        when(mockEvent.getMember()).thenReturn(mockUser);
-        when(mockEvent.getChannelLeft()).thenReturn(mockBotChannel);
-        when(mockEvent.getChannelJoined()).thenReturn(null);
+        when(mMockEvent.getMember()).thenReturn(mMockUser);
+        when(mMockEvent.getChannelLeft()).thenReturn(mMockBotChannel);
+        when(mMockEvent.getChannelJoined()).thenReturn(null);
         // Another human is still present
-        when(mockBotChannel.getMembers()).thenReturn(List.of(mockBotMember, anotherUser));
+        when(mMockBotChannel.getMembers()).thenReturn(List.of(mMockBotMember, anotherUser));
 
-        listener.onGuildVoiceUpdate(mockEvent);
+        mListener.onGuildVoiceUpdate(mMockEvent);
 
-        verify(mockController, never()).startIdleTimer();
-        verify(mockController, never()).cancelIdleTimer();
+        verify(mMockController, never()).startIdleTimer();
+        verify(mMockController, never()).cancelIdleTimer();
     }
 
     @Test
     void userJoiningBotChannelCancelsIdleTimer() {
-        when(mockEvent.getMember()).thenReturn(mockUser);
-        when(mockEvent.getChannelJoined()).thenReturn(mockBotChannel);
-        when(mockEvent.getChannelLeft()).thenReturn(null);
+        when(mMockEvent.getMember()).thenReturn(mMockUser);
+        when(mMockEvent.getChannelJoined()).thenReturn(mMockBotChannel);
+        when(mMockEvent.getChannelLeft()).thenReturn(null);
 
-        listener.onGuildVoiceUpdate(mockEvent);
+        mListener.onGuildVoiceUpdate(mMockEvent);
 
-        verify(mockController).cancelIdleTimer();
-        verify(mockController, never()).startIdleTimer();
+        verify(mMockController).cancelIdleTimer();
+        verify(mMockController, never()).startIdleTimer();
     }
 
     @Test
     void userJoiningUnrelatedChannelIsIgnored() {
-        when(mockEvent.getMember()).thenReturn(mockUser);
-        when(mockEvent.getChannelJoined()).thenReturn(mockOtherChannel);
-        when(mockEvent.getChannelLeft()).thenReturn(null);
+        when(mMockEvent.getMember()).thenReturn(mMockUser);
+        when(mMockEvent.getChannelJoined()).thenReturn(mMockOtherChannel);
+        when(mMockEvent.getChannelLeft()).thenReturn(null);
 
-        listener.onGuildVoiceUpdate(mockEvent);
+        mListener.onGuildVoiceUpdate(mMockEvent);
 
-        verify(mockController, never()).cancelIdleTimer();
-        verify(mockController, never()).startIdleTimer();
+        verify(mMockController, never()).cancelIdleTimer();
+        verify(mMockController, never()).startIdleTimer();
     }
 
     @Test
     void eventFromUnrelatedGuildIsIgnored() {
-        when(mockController.getConnectedGuildId()).thenReturn(850000000000000000L);
-        when(mockEvent.getMember()).thenReturn(mockUser);
-        when(mockEvent.getChannelLeft()).thenReturn(mockBotChannel);
-        when(mockEvent.getChannelJoined()).thenReturn(null);
+        when(mMockController.getConnectedGuildId()).thenReturn(850000000000000000L);
+        when(mMockEvent.getMember()).thenReturn(mMockUser);
+        when(mMockEvent.getChannelLeft()).thenReturn(mMockBotChannel);
+        when(mMockEvent.getChannelJoined()).thenReturn(null);
 
-        listener.onGuildVoiceUpdate(mockEvent);
+        mListener.onGuildVoiceUpdate(mMockEvent);
 
-        verify(mockController, never()).startIdleTimer();
-        verify(mockController, never()).cancelIdleTimer();
-        verify(mockController, never()).leave();
+        verify(mMockController, never()).startIdleTimer();
+        verify(mMockController, never()).cancelIdleTimer();
+        verify(mMockController, never()).leave();
     }
 
     @Test
     void eventWhenBotNotConnectedIsIgnored() {
-        when(mockController.getConnectedChannel()).thenReturn(null);
-        when(mockController.getConnectedGuildId()).thenReturn(null);
-        when(mockEvent.getMember()).thenReturn(mockUser);
-        when(mockEvent.getChannelLeft()).thenReturn(mockBotChannel);
-        when(mockEvent.getChannelJoined()).thenReturn(null);
+        when(mMockController.getConnectedChannel()).thenReturn(null);
+        when(mMockController.getConnectedGuildId()).thenReturn(null);
+        when(mMockEvent.getMember()).thenReturn(mMockUser);
+        when(mMockEvent.getChannelLeft()).thenReturn(mMockBotChannel);
+        when(mMockEvent.getChannelJoined()).thenReturn(null);
 
-        listener.onGuildVoiceUpdate(mockEvent);
+        mListener.onGuildVoiceUpdate(mMockEvent);
 
-        verify(mockController, never()).startIdleTimer();
-        verify(mockController, never()).cancelIdleTimer();
+        verify(mMockController, never()).startIdleTimer();
+        verify(mMockController, never()).cancelIdleTimer();
     }
 }

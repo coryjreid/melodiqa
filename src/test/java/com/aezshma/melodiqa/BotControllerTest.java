@@ -1,9 +1,5 @@
 package com.aezshma.melodiqa;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -17,10 +13,22 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
 import net.dv8tion.jda.api.managers.AudioManager;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -29,23 +37,30 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class BotControllerTest {
 
-    @Mock private Mixer mockMixer;
-    @Mock private ScheduledExecutorService mockScheduler;
-    @Mock private AudioChannel mockChannel;
-    @Mock private Guild mockGuild;
-    @Mock private AudioManager mockAudioManager;
-    @Mock private TargetDataLine mockDataLine;
-    @Mock private ScheduledFuture<?> mockFuture;
+    @Mock
+    private Mixer mMockMixer;
+    @Mock
+    private ScheduledExecutorService mMockScheduler;
+    @Mock
+    private AudioChannel mMockChannel;
+    @Mock
+    private Guild mMockGuild;
+    @Mock
+    private AudioManager mMockAudioManager;
+    @Mock
+    private TargetDataLine mMockDataLine;
+    @Mock
+    private ScheduledFuture<?> mMockFuture;
 
-    private BotController controller;
+    private BotController mController;
 
     @BeforeEach
     void setUp() throws Exception {
-        when(mockChannel.getGuild()).thenReturn(mockGuild);
-        when(mockGuild.getIdLong()).thenReturn(12345L);
-        when(mockGuild.getAudioManager()).thenReturn(mockAudioManager);
-        when(mockMixer.getLine(any(DataLine.Info.class))).thenReturn(mockDataLine);
-        controller = new BotController(mockMixer, mockScheduler);
+        when(mMockChannel.getGuild()).thenReturn(mMockGuild);
+        when(mMockGuild.getIdLong()).thenReturn(12345L);
+        when(mMockGuild.getAudioManager()).thenReturn(mMockAudioManager);
+        when(mMockMixer.getLine(any(DataLine.Info.class))).thenReturn(mMockDataLine);
+        mController = new BotController(mMockMixer, mMockScheduler);
     }
 
     @Test
@@ -57,78 +72,78 @@ class BotControllerTest {
 
     @Test
     void startIdleTimerSchedulesTask() {
-        controller.startIdleTimer();
-        verify(mockScheduler).schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES));
+        mController.startIdleTimer();
+        verify(mMockScheduler).schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES));
     }
 
     @Test
     void startIdleTimerCancelsExistingTimerFirst() {
-        doReturn(mockFuture).when(mockScheduler)
+        doReturn(mMockFuture).when(mMockScheduler)
             .schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES));
-        controller.startIdleTimer();
-        controller.startIdleTimer();
-        verify(mockFuture).cancel(false);
-        verify(mockScheduler, times(2)).schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES));
+        mController.startIdleTimer();
+        mController.startIdleTimer();
+        verify(mMockFuture).cancel(false);
+        verify(mMockScheduler, times(2)).schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES));
     }
 
     @Test
     void cancelIdleTimerCancelsFuture() {
-        doReturn(mockFuture).when(mockScheduler)
+        doReturn(mMockFuture).when(mMockScheduler)
             .schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES));
-        controller.startIdleTimer();
-        controller.cancelIdleTimer();
-        verify(mockFuture).cancel(false);
+        mController.startIdleTimer();
+        mController.cancelIdleTimer();
+        verify(mMockFuture).cancel(false);
     }
 
     @Test
     void cancelIdleTimerWithNoTimerDoesNothing() {
-        assertDoesNotThrow(() -> controller.cancelIdleTimer());
+        assertDoesNotThrow(() -> mController.cancelIdleTimer());
     }
 
     @Test
     void leaveWhenNotConnectedDoesNothing() {
-        assertDoesNotThrow(() -> controller.leave());
-        verifyNoInteractions(mockAudioManager);
+        assertDoesNotThrow(() -> mController.leave());
+        verifyNoInteractions(mMockAudioManager);
     }
 
     @Test
     void joinSetsConnectedState() {
-        controller.join(mockChannel);
+        mController.join(mMockChannel);
 
         assertTrue(controller.isConnected());
-        assertEquals(12345L, controller.getConnectedGuildId());
-        assertEquals(mockChannel, controller.getConnectedChannel());
-        verify(mockAudioManager).openAudioConnection(mockChannel);
-        verify(mockAudioManager).setSendingHandler(any());
+        assertEquals(12345L, mController.getConnectedGuildId());
+        assertEquals(mMockChannel, mController.getConnectedChannel());
+        verify(mMockAudioManager).openAudioConnection(mMockChannel);
+        verify(mMockAudioManager).setSendingHandler(any());
 
-        controller.leave();
+        mController.leave();
     }
 
     @Test
     void leaveResetsConnectedState() {
-        controller.join(mockChannel);
-        controller.leave();
+        mController.join(mMockChannel);
+        mController.leave();
 
         assertFalse(controller.isConnected());
         assertNull(controller.getConnectedGuildId());
         assertNull(controller.getConnectedChannel());
-        verify(mockAudioManager).closeAudioConnection();
+        verify(mMockAudioManager).closeAudioConnection();
     }
 
     @Test
     void leaveIsIdempotent() {
-        controller.join(mockChannel);
-        controller.leave();
-        assertDoesNotThrow(() -> controller.leave());
-        verify(mockAudioManager, times(1)).closeAudioConnection();
+        mController.join(mMockChannel);
+        mController.leave();
+        assertDoesNotThrow(() -> mController.leave());
+        verify(mMockAudioManager, times(1)).closeAudioConnection();
     }
 
     @Test
     void lineUnavailableExceptionDisconnects() throws Exception {
-        when(mockMixer.getLine(any(DataLine.Info.class)))
+        when(mMockMixer.getLine(any(DataLine.Info.class)))
             .thenThrow(new LineUnavailableException("device busy"));
 
-        controller.join(mockChannel);
+        mController.join(mMockChannel);
         Thread.sleep(200);
 
         assertFalse(controller.isConnected());
