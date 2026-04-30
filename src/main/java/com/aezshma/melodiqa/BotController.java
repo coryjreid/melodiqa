@@ -77,7 +77,9 @@ public class BotController {
                 sLogger.error("Failed to open audio device", e);
                 leave();
             } finally {
-                mDataLine = null;
+                synchronized (BotController.this) {
+                    mDataLine = null;
+                }
             }
         });
         mCaptureThread.setDaemon(true);
@@ -108,6 +110,7 @@ public class BotController {
 
             mConnectedChannel = null;
             mConnectedGuildId = null;
+            sLogger.info("Left voice channel");
         }
         if (captureThreadToJoin != null) {
             try {
@@ -116,7 +119,6 @@ public class BotController {
                 Thread.currentThread().interrupt();
             }
         }
-        sLogger.info("Left voice channel");
     }
 
     public synchronized void startIdleTimer() {

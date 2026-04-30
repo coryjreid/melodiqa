@@ -9,6 +9,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
 
@@ -34,8 +35,7 @@ class BotControllerTest {
     @Mock private Guild mockGuild;
     @Mock private AudioManager mockAudioManager;
     @Mock private TargetDataLine mockDataLine;
-    @SuppressWarnings("rawtypes")
-    @Mock private ScheduledFuture mockFuture;
+    @Mock private ScheduledFuture<?> mockFuture;
 
     private BotController controller;
 
@@ -62,10 +62,9 @@ class BotControllerTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void startIdleTimerCancelsExistingTimerFirst() {
-        when(mockScheduler.schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES)))
-            .thenReturn(mockFuture);
+        doReturn(mockFuture).when(mockScheduler)
+            .schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES));
         controller.startIdleTimer();
         controller.startIdleTimer();
         verify(mockFuture).cancel(false);
@@ -73,10 +72,9 @@ class BotControllerTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void cancelIdleTimerCancelsFuture() {
-        when(mockScheduler.schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES)))
-            .thenReturn(mockFuture);
+        doReturn(mockFuture).when(mockScheduler)
+            .schedule(any(Runnable.class), eq(5L), eq(TimeUnit.MINUTES));
         controller.startIdleTimer();
         controller.cancelIdleTimer();
         verify(mockFuture).cancel(false);
@@ -101,7 +99,7 @@ class BotControllerTest {
         assertEquals(12345L, controller.getConnectedGuildId());
         assertEquals(mockChannel, controller.getConnectedChannel());
         verify(mockAudioManager).openAudioConnection(mockChannel);
-        verify(mockAudioManager).setSendingHandler(any());  // ADD THIS LINE
+        verify(mockAudioManager).setSendingHandler(any());
 
         controller.leave();
     }
@@ -123,5 +121,17 @@ class BotControllerTest {
         controller.leave();
         assertDoesNotThrow(() -> controller.leave());
         verify(mockAudioManager, times(1)).closeAudioConnection();
+    }
+
+    @Test
+    void lineUnavailableExceptionDisconnects() throws Exception {
+        when(mockMixer.getLine(any(DataLine.Info.class)))
+            .thenThrow(new LineUnavailableException("device busy"));
+
+        controller.join(mockChannel);
+        Thread.sleep(200);
+
+        assertFalse(controller.isConnected());
+        assertNull(controller.getConnectedGuildId());
     }
 }
