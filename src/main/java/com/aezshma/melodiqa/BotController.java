@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 public class BotController {
     private static final Logger sLogger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final long CAPTURE_THREAD_JOIN_TIMEOUT_MS = 2000;
 
     private final Mixer mTargetMixer;
     private final ScheduledExecutorService mScheduler;
@@ -62,7 +63,7 @@ public class BotController {
 
         mCapturing.set(true);
         mCaptureThread = new Thread(() -> {
-            try (TargetDataLine dataLine = (TargetDataLine) mTargetMixer.getLine(
+            try (final TargetDataLine dataLine = (TargetDataLine) mTargetMixer.getLine(
                     new DataLine.Info(TargetDataLine.class, AudioSendHandler.INPUT_FORMAT))) {
                 mDataLine = dataLine;
                 dataLine.open();
@@ -114,7 +115,7 @@ public class BotController {
         }
         if (captureThreadToJoin != null) {
             try {
-                captureThreadToJoin.join(2000);
+                captureThreadToJoin.join(CAPTURE_THREAD_JOIN_TIMEOUT_MS);
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
