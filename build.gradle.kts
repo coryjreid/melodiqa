@@ -12,7 +12,7 @@ repositories {
 }
 
 group = "com.aezshma.melodiqa"
-version = "1.1.0"
+version = "2.0.0"
 
 java {
     toolchain {
@@ -90,10 +90,13 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.junit.jupiter)
 }
 
 tasks.test {
     useJUnitPlatform()
+    jvmArgs("-Dnet.bytebuddy.experimental=true")
 }
 
 tasks.register<Zip>("runtimeZipWinX64") {
