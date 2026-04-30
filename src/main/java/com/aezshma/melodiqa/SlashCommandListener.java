@@ -38,6 +38,8 @@ public class SlashCommandListener extends ListenerAdapter {
             return;
         }
 
+        if (event.getGuild() == null) return;
+
         final long thisGuildId = event.getGuild().getIdLong();
         final Long connectedGuildId = mController.getConnectedGuildId();
 
@@ -60,6 +62,8 @@ public class SlashCommandListener extends ListenerAdapter {
     }
 
     private void handleLeave(final SlashCommandInteractionEvent event) {
+        if (event.getGuild() == null) return;
+
         final long thisGuildId = event.getGuild().getIdLong();
         final Long connectedGuildId = mController.getConnectedGuildId();
 

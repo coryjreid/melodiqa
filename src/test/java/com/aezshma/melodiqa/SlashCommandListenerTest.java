@@ -60,8 +60,8 @@ class SlashCommandListenerTest {
         when(mockMember.getVoiceState()).thenReturn(mockVoiceState);
         when(mockVoiceState.inAudioChannel()).thenReturn(true);
         when(mockEvent.getGuild()).thenReturn(mockGuild);
-        when(mockGuild.getIdLong()).thenReturn(111L);
-        when(mockController.getConnectedGuildId()).thenReturn(111L);
+        when(mockGuild.getIdLong()).thenReturn(750000000000000000L);
+        when(mockController.getConnectedGuildId()).thenReturn(750000000000000000L);
 
         listener.onSlashCommandInteraction(mockEvent);
 
@@ -78,8 +78,8 @@ class SlashCommandListenerTest {
         when(mockMember.getVoiceState()).thenReturn(mockVoiceState);
         when(mockVoiceState.inAudioChannel()).thenReturn(true);
         when(mockEvent.getGuild()).thenReturn(mockGuild);
-        when(mockGuild.getIdLong()).thenReturn(222L);
-        when(mockController.getConnectedGuildId()).thenReturn(111L);
+        when(mockGuild.getIdLong()).thenReturn(850000000000000000L);
+        when(mockController.getConnectedGuildId()).thenReturn(750000000000000000L);
 
         listener.onSlashCommandInteraction(mockEvent);
 
@@ -98,7 +98,7 @@ class SlashCommandListenerTest {
         when(mockVoiceState.getChannel()).thenReturn(mockChannel);
         when(mockChannel.getName()).thenReturn("General");
         when(mockEvent.getGuild()).thenReturn(mockGuild);
-        when(mockGuild.getIdLong()).thenReturn(111L);
+        when(mockGuild.getIdLong()).thenReturn(750000000000000000L);
         when(mockController.getConnectedGuildId()).thenReturn(null);
 
         listener.onSlashCommandInteraction(mockEvent);
@@ -109,13 +109,26 @@ class SlashCommandListenerTest {
         verify(mockReplyAction).queue();
     }
 
+    @Test
+    void joinWhenMemberIsNullRepliesWithError() {
+        when(mockEvent.getName()).thenReturn("join");
+        when(mockEvent.getMember()).thenReturn(null);
+
+        listener.onSlashCommandInteraction(mockEvent);
+
+        verify(mockEvent).reply("You must be in a voice channel to use this command.");
+        verify(mockReplyAction).setEphemeral(true);
+        verify(mockReplyAction).queue();
+        verifyNoInteractions(mockController);
+    }
+
     // --- /leave tests ---
 
     @Test
     void leaveWhenBotNotConnectedRepliesWithError() {
         when(mockEvent.getName()).thenReturn("leave");
         when(mockEvent.getGuild()).thenReturn(mockGuild);
-        when(mockGuild.getIdLong()).thenReturn(111L);
+        when(mockGuild.getIdLong()).thenReturn(750000000000000000L);
         when(mockController.getConnectedGuildId()).thenReturn(null);
 
         listener.onSlashCommandInteraction(mockEvent);
@@ -130,8 +143,8 @@ class SlashCommandListenerTest {
     void leaveWhenBotInDifferentGuildRepliesWithError() {
         when(mockEvent.getName()).thenReturn("leave");
         when(mockEvent.getGuild()).thenReturn(mockGuild);
-        when(mockGuild.getIdLong()).thenReturn(222L);
-        when(mockController.getConnectedGuildId()).thenReturn(111L);
+        when(mockGuild.getIdLong()).thenReturn(850000000000000000L);
+        when(mockController.getConnectedGuildId()).thenReturn(750000000000000000L);
 
         listener.onSlashCommandInteraction(mockEvent);
 
@@ -145,8 +158,8 @@ class SlashCommandListenerTest {
     void leaveHappyPathCallsLeaveAndReplies() {
         when(mockEvent.getName()).thenReturn("leave");
         when(mockEvent.getGuild()).thenReturn(mockGuild);
-        when(mockGuild.getIdLong()).thenReturn(111L);
-        when(mockController.getConnectedGuildId()).thenReturn(111L);
+        when(mockGuild.getIdLong()).thenReturn(750000000000000000L);
+        when(mockController.getConnectedGuildId()).thenReturn(750000000000000000L);
 
         listener.onSlashCommandInteraction(mockEvent);
 
