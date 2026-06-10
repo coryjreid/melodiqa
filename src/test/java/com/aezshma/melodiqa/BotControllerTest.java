@@ -65,9 +65,9 @@ class BotControllerTest {
 
     @Test
     void initiallyNotConnected() {
-        assertFalse(controller.isConnected());
-        assertNull(controller.getConnectedGuildId());
-        assertNull(controller.getConnectedChannel());
+        assertFalse(mController.isConnected());
+        assertNull(mController.getConnectedGuildId());
+        assertNull(mController.getConnectedChannel());
     }
 
     @Test
@@ -110,7 +110,7 @@ class BotControllerTest {
     void joinSetsConnectedState() {
         mController.join(mMockChannel);
 
-        assertTrue(controller.isConnected());
+        assertTrue(mController.isConnected());
         assertEquals(12345L, mController.getConnectedGuildId());
         assertEquals(mMockChannel, mController.getConnectedChannel());
         verify(mMockAudioManager).openAudioConnection(mMockChannel);
@@ -124,9 +124,9 @@ class BotControllerTest {
         mController.join(mMockChannel);
         mController.leave();
 
-        assertFalse(controller.isConnected());
-        assertNull(controller.getConnectedGuildId());
-        assertNull(controller.getConnectedChannel());
+        assertFalse(mController.isConnected());
+        assertNull(mController.getConnectedGuildId());
+        assertNull(mController.getConnectedChannel());
         verify(mMockAudioManager).closeAudioConnection();
     }
 
@@ -146,7 +146,7 @@ class BotControllerTest {
         mController.join(mMockChannel);
         Thread.sleep(200);
 
-        assertFalse(controller.isConnected());
-        assertNull(controller.getConnectedGuildId());
+        assertFalse(mController.isConnected());
+        assertNull(mController.getConnectedGuildId());
     }
 }
